@@ -6,26 +6,23 @@ import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
-import com.sedmelluq.discord.lavaplayer.track.AudioReference;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.*;
-import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
-import net.dv8tion.jda.api.exceptions.RateLimitedException;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.managers.AudioManager;
-import org.jetbrains.annotations.Async;
 
 import javax.security.auth.login.LoginException;
 import java.awt.Color;
-import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class BigBot extends ListenerAdapter {
 
@@ -33,7 +30,6 @@ public class BigBot extends ListenerAdapter {
     static VoiceChannel vc;
     private final AudioPlayerManager playerManager;
     private final Map<Long, GuildMusicManager> musicManagers;
-    static GuildMessageReceivedEvent outsideEvent = null;
     private final EmbedBuilder eb;
     private boolean b = true;
 
@@ -160,23 +156,20 @@ public class BigBot extends ListenerAdapter {
     }
 
     private static void connectToFirstVoiceChannel(AudioManager audioManager) {
-        if (!audioManager.isConnected() && !audioManager.isAttemptingToConnect()) {
+        if (!audioManager.isConnected()) {
             audioManager.openAudioConnection(vc);
         }
     }
 
     private void hourly(TextChannel channel) {
         ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
-        ses.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
+        ses.scheduleAtFixedRate(() -> {
 
-                //new TrackScheduler(getGuildAudioPlayer(channel.getGuild()).player).getPlayer().startTrack(true);
-                channel.sendMessage("Bong ihr Missgeburten").queue();
-                loadAndPlay(channel, commandHandler.getSpecial().get(0));
-                connectToFirstVoiceChannel(channel.getGuild().getAudioManager());
+            //new TrackScheduler(getGuildAudioPlayer(channel.getGuild()).player).getPlayer().startTrack(true);
+            channel.sendMessage("Bong ihr Missgeburten").queue();
+            loadAndPlay(channel, commandHandler.getSpecial().get(0));
+            connectToFirstVoiceChannel(channel.getGuild().getAudioManager());
 
-            }
         }, 0, 1, TimeUnit.HOURS);
     }
 
