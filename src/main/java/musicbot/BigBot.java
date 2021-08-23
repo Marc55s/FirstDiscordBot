@@ -1,15 +1,18 @@
 package musicbot;
 
 import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
+import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
+import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -32,6 +35,7 @@ public class BigBot extends ListenerAdapter {
     private final Map<Long, GuildMusicManager> musicManagers;
     private final EmbedBuilder eb;
     private boolean b = true;
+    private String trackUrl;
 
     public static void main(String[] args) throws IllegalArgumentException, LoginException {
         JDABuilder.createDefault("ODc3NjMxNjQxMDYzOTE1NTQw.YR1cKA.4xxbd9Z_BgLInY3E-OHpMrwwiWg") // Use token provided as JVM argument
@@ -57,22 +61,32 @@ public class BigBot extends ListenerAdapter {
             musicManager = new GuildMusicManager(playerManager);
             musicManagers.put(guildId, musicManager);
         }
+        guild.getAudioManager().setSendingHandler(musicManager.getSendHandler());
+        return musicManager;
+    }
 
+    private synchronized GuildMusicManager getGuildAudioPlayer2(Guild guild) {
+        long guildId = Long.parseLong(guild.getId());
+        GuildMusicManager musicManager = musicManagers.get(guildId);
+        if (musicManager == null) {
+            musicManager = new GuildMusicManager(playerManager);
+            musicManagers.put(guildId, musicManager);
+        }
         guild.getAudioManager().setSendingHandler(musicManager.getSendHandler());
         return musicManager;
     }
 
     @Override
     public void onGuildMemberJoin(GuildMemberJoinEvent event) {
-        if(event.getMember().equals(event.getGuild().getMember(User.fromId("325265696130990081"))))
-            event.getGuild().addRoleToMember("325265696130990081", event.getGuild().getRoleById("769119865587630081")).queue();
+
         super.onGuildMemberJoin(event);
     }
 
     @Override
     public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
+        event.getGuild().addRoleToMember("325265696130990081", Objects.requireNonNull(event.getGuild().getRoleById("769119865587630081"))).queue();
         if (b) {
-            //hourly(event.getChannel());
+            hourly(event.getChannel());
         }
         b = false;
 
@@ -83,92 +97,78 @@ public class BigBot extends ListenerAdapter {
 
         for (int i = 0; i < commandHandler.getCommmands().size(); i++) {
             if (userInput[0].equals(commandHandler.getCommmands().get(i))) {
-                //TODO: Second Player for mp3
                 switch (i) {
                     case 0 -> event.getChannel().sendMessage(eb.build()).queue();
-                    case 1 -> loadAndPlay(event.getChannel(), userInput[1]);
-                    case 2 -> skipTrack(event.getChannel());
-                    case 3 -> {
+                    case 1 -> {
                         //TODO: Clear queue
                         event.getGuild().getAudioManager().closeAudioConnection();
                         event.getChannel().sendMessage("Disconnected").queue();
+                        getGuildAudioPlayer(event.getGuild()).scheduler.nextTrack();
+                        trackUrl = "";
                     }
-                    case 4 -> loadAndPlay(event.getChannel(), commandHandler.getSpecial().get(0));
-                    case 5 -> loadAndPlay(event.getChannel(), commandHandler.getSpecial().get(1));
-                    case 6 -> {
-                        if (event.getMember().equals(event.getGuild().getMember(User.fromId("325265696130990081")))) break;
+                    case 2 -> loader(event.getGuild(), commandHandler.getSpecial().get(0));
+                    case 3 -> loader(event.getGuild(), commandHandler.getSpecial().get(1));
+                    case 4 -> {
+                        if (event.getMember().equals(event.getGuild().getMember(User.fromId("325265696130990081"))))
+                            break;
                         Objects.requireNonNull(event.getGuild().getMember(User.fromId("325265696130990081"))).kick().queue();
                     }
                     default -> event.getChannel().sendMessage("Not on the CommandList").queue();
                 }
             }
         }
+
+
+        trackUrl = "";
         super.onGuildMessageReceived(event);
     }
 
-    private void loadAndPlay(final TextChannel channel, final String trackUrl) {
-        GuildMusicManager musicManager = getGuildAudioPlayer(channel.getGuild());
-
-        playerManager.loadItemOrdered(musicManager, trackUrl, new AudioLoadResultHandler() {
+    public void loader(Guild guild, String trackUrl) {
+        playerManager.loadItem(trackUrl, new AudioLoadResultHandler() {
             @Override
             public void trackLoaded(AudioTrack track) {
-                channel.sendMessage("Adding to queue: " + track.getInfo().title).queue();
-
-                play(channel.getGuild(), musicManager, track);
+                play(guild, getGuildAudioPlayer(guild), track);
             }
-
             @Override
             public void playlistLoaded(AudioPlaylist playlist) {
-                AudioTrack firstTrack = playlist.getSelectedTrack();
 
-                if (firstTrack == null) {
-                    firstTrack = playlist.getTracks().get(0);
-                }
-
-                channel.sendMessage("Adding to queue " + firstTrack.getInfo().title + " (first track of playlist " + playlist.getName() + ")").queue();
-
-                play(channel.getGuild(), musicManager, firstTrack);
             }
 
             @Override
             public void noMatches() {
-                channel.sendMessage("Nothing found by " + trackUrl).queue();
+
             }
 
             @Override
             public void loadFailed(FriendlyException exception) {
-                channel.sendMessage("Could not play: " + exception.getMessage()).queue();
+
             }
         });
+
     }
+
 
     private void play(Guild guild, GuildMusicManager musicManager, AudioTrack track) {
         connectToFirstVoiceChannel(guild.getAudioManager());
-
         musicManager.scheduler.queue(track);
     }
 
-    private void skipTrack(TextChannel channel) {
-        GuildMusicManager musicManager = getGuildAudioPlayer(channel.getGuild());
-        musicManager.scheduler.nextTrack();
-
-        channel.sendMessage("Skipped to next track.").queue();
-    }
 
     private static void connectToFirstVoiceChannel(AudioManager audioManager) {
         if (!audioManager.isConnected()) {
-            audioManager.openAudioConnection(vc);
+            for (VoiceChannel voiceChannel : audioManager.getGuild().getVoiceChannels()) {
+                audioManager.openAudioConnection(voiceChannel);
+                break;
+            }
         }
     }
 
     private void hourly(TextChannel channel) {
+
         ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
         ses.scheduleAtFixedRate(() -> {
-
-            //new TrackScheduler(getGuildAudioPlayer(channel.getGuild()).player).getPlayer().startTrack(true);
-            channel.sendMessage("Bong ihr Missgeburten").queue();
-            loadAndPlay(channel, commandHandler.getSpecial().get(0));
-            connectToFirstVoiceChannel(channel.getGuild().getAudioManager());
+            String trackUrl = commandHandler.getSpecial().get(0);
+            loader(channel.getGuild(),trackUrl);
 
         }, 0, 1, TimeUnit.HOURS);
     }
@@ -181,8 +181,8 @@ public class BigBot extends ListenerAdapter {
         eb.setDescription("Help Window");
         eb.addField("The best i can do is:", """
                 >help | >leave
-                >play | >Bong
-                >skip | >antiweeb
+                >Bong
+                >antiweeb
                 """, false);
         eb.setImage("https://everythingisviral.com/wp-content/webp-express/webp-images/uploads/2020/10/polite-cat.png.webp");
         eb.setFooter("special: tom");
