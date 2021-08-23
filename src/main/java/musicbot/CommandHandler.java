@@ -36,7 +36,7 @@ public class CommandHandler {
 
     public void specialSetup(){
         special = new ArrayList<>();
-        special.add("https://www.youtube.com/watch?v=rgAM1s2CRjM&t=5s");
+        special.add("D:\\Development\\Java Projects\\FirstDiscordBot\\src\\main\\resources\\Earrape_Big_Ben_10s.mp3");
         special.add("D:\\Development\\Java Projects\\FirstDiscordBot\\src\\main\\resources\\hassschrei.mp3");
     }
 
