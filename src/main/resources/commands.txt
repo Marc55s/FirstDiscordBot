@@ -1,6 +1,4 @@
 >help
->play
->skip
 >leave
 >Bong
 >antiweeb
