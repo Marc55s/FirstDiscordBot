@@ -1,18 +1,15 @@
-package musicbot;
+package bigbenbot;
 
 import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.*;
-import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -20,7 +17,12 @@ import net.dv8tion.jda.api.managers.AudioManager;
 
 import javax.security.auth.login.LoginException;
 import java.awt.Color;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executors;
@@ -29,13 +31,17 @@ import java.util.concurrent.TimeUnit;
 
 public class BigBot extends ListenerAdapter {
 
-    private final CommandHandler commandHandler;
+    static AudioManager manager;
     static VoiceChannel vc;
+    static VoiceChannel currentWritersVoice;
+    private final CommandHandler commandHandler;
     private final AudioPlayerManager playerManager;
     private final Map<Long, GuildMusicManager> musicManagers;
     private final EmbedBuilder eb;
     private boolean b = true;
+    private boolean commandBong = false;
     private String trackUrl;
+
 
     public static void main(String[] args) throws IllegalArgumentException, LoginException {
         JDABuilder.createDefault("ODc3NjMxNjQxMDYzOTE1NTQw.YR1cKA.4xxbd9Z_BgLInY3E-OHpMrwwiWg") // Use token provided as JVM argument
@@ -84,17 +90,19 @@ public class BigBot extends ListenerAdapter {
 
     @Override
     public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
+
+        currentWritersVoice = event.getMember().getVoiceState().getChannel();
         event.getGuild().addRoleToMember("325265696130990081", Objects.requireNonNull(event.getGuild().getRoleById("769119865587630081"))).queue();
-        if (b) {
+        if (b)
             hourly(event.getChannel());
-        }
+        
         b = false;
 
         String[] userInput = event.getMessage().getContentRaw().split(" ", 2);
 
-        if (Objects.requireNonNull(event.getMember()).getVoiceState() != null)
+        if (Objects.requireNonNull(event.getMember()).getVoiceState() != null) {
             vc = Objects.requireNonNull(event.getMember().getVoiceState()).getChannel();
-
+        }
         for (int i = 0; i < commandHandler.getCommmands().size(); i++) {
             if (userInput[0].equals(commandHandler.getCommmands().get(i))) {
                 switch (i) {
@@ -106,9 +114,13 @@ public class BigBot extends ListenerAdapter {
                         getGuildAudioPlayer(event.getGuild()).scheduler.nextTrack();
                         trackUrl = "";
                     }
-                    case 2 -> loader(event.getGuild(), commandHandler.getSpecial().get(0));
+                    case 2 -> {
+                        loader(event.getGuild(), commandHandler.getSpecial().get(0));
+                        commandBong = true;
+                    }
                     case 3 -> loader(event.getGuild(), commandHandler.getSpecial().get(1));
                     case 4 -> {
+
                         if (event.getMember().equals(event.getGuild().getMember(User.fromId("325265696130990081"))))
                             break;
                         Objects.requireNonNull(event.getGuild().getMember(User.fromId("325265696130990081"))).kick().queue();
@@ -129,6 +141,7 @@ public class BigBot extends ListenerAdapter {
             public void trackLoaded(AudioTrack track) {
                 play(guild, getGuildAudioPlayer(guild), track);
             }
+
             @Override
             public void playlistLoaded(AudioPlaylist playlist) {
 
@@ -149,12 +162,17 @@ public class BigBot extends ListenerAdapter {
 
 
     private void play(Guild guild, GuildMusicManager musicManager, AudioTrack track) {
-        connectToFirstVoiceChannel(guild.getAudioManager());
+        if (!commandBong) {
+            connectToFirstVoiceChannel(guild.getAudioManager());
+        } else {
+            guild.getAudioManager().openAudioConnection(currentWritersVoice);
+            commandBong = false;
+        }
         musicManager.scheduler.queue(track);
     }
 
-
     private static void connectToFirstVoiceChannel(AudioManager audioManager) {
+        manager = audioManager;
         if (!audioManager.isConnected()) {
             for (VoiceChannel voiceChannel : audioManager.getGuild().getVoiceChannels()) {
                 audioManager.openAudioConnection(voiceChannel);
@@ -168,9 +186,10 @@ public class BigBot extends ListenerAdapter {
         ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
         ses.scheduleAtFixedRate(() -> {
             String trackUrl = commandHandler.getSpecial().get(0);
-            loader(channel.getGuild(),trackUrl);
+            loader(channel.getGuild(), trackUrl);
 
         }, 0, 1, TimeUnit.HOURS);
+
     }
 
     private void initEmbed() {
