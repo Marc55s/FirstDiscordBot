@@ -17,12 +17,7 @@ import net.dv8tion.jda.api.managers.AudioManager;
 
 import javax.security.auth.login.LoginException;
 import java.awt.Color;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executors;
@@ -41,10 +36,12 @@ public class BigBot extends ListenerAdapter {
     private boolean b = true;
     private boolean commandBong = false;
     private String trackUrl;
+    private String special;
+
 
 
     public static void main(String[] args) throws IllegalArgumentException, LoginException {
-        JDABuilder.createDefault("ODc3NjMxNjQxMDYzOTE1NTQw.YR1cKA.4xxbd9Z_BgLInY3E-OHpMrwwiWg") // Use token provided as JVM argument
+        JDABuilder.createDefault("token") // Use token provided as JVM argument
                 .addEventListeners(new BigBot())
                 .setActivity(Activity.playing("Thats a lot of Damage")) // Register new MusicBot instance as EventListener
                 .build(); // Build JDA - connect to discord
@@ -92,7 +89,7 @@ public class BigBot extends ListenerAdapter {
     public void onGuildMessageReceived(GuildMessageReceivedEvent event) {
 
         currentWritersVoice = event.getMember().getVoiceState().getChannel();
-        event.getGuild().addRoleToMember("325265696130990081", Objects.requireNonNull(event.getGuild().getRoleById("769119865587630081"))).queue();
+        event.getGuild().addRoleToMember(special, Objects.requireNonNull(event.getGuild().getRoleById("769119865587630081"))).queue();
         if (b)
             hourly(event.getChannel());
         
@@ -121,9 +118,9 @@ public class BigBot extends ListenerAdapter {
                     case 3 -> loader(event.getGuild(), commandHandler.getSpecial().get(1));
                     case 4 -> {
 
-                        if (event.getMember().equals(event.getGuild().getMember(User.fromId("325265696130990081"))))
+                        if (event.getMember().equals(event.getGuild().getMember(User.fromId(special))))
                             break;
-                        Objects.requireNonNull(event.getGuild().getMember(User.fromId("325265696130990081"))).kick().queue();
+                        Objects.requireNonNull(event.getGuild().getMember(User.fromId(special))).kick().queue();
                     }
                     default -> event.getChannel().sendMessage("Not on the CommandList").queue();
                 }
