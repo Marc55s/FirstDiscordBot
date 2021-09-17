@@ -35,8 +35,8 @@ public class CommandHandler {
 
     public void specialSetup(){
         special = new ArrayList<>();
-        special.add("D:\\Development\\Java Projects\\FirstDiscordBot\\src\\main\\resources\\Earrape_Big_Ben_10s.mp3");
-        special.add("D:\\Development\\Java Projects\\FirstDiscordBot\\src\\main\\resources\\hassschrei.mp3");
+        special.add("PATH");
+        special.add("PATH");
     }
 
     public List<String> getCommmands() {
