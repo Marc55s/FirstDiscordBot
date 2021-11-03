@@ -198,10 +198,8 @@ public class BigBot extends ListenerAdapter {
         eb.addField("The best i can do is:", """
                 >help | >leave
                 >Bong
-                >antiweeb
                 """, false);
         eb.setImage("https://everythingisviral.com/wp-content/webp-express/webp-images/uploads/2020/10/polite-cat.png.webp");
-        eb.setFooter("special: tom");
     }
 
 }
